@@ -24,13 +24,12 @@ class GA(object):
         proportion of mutations
     """
 
-    def __init__(self, fit, mu, cr, p_mu, p_cr, p_elite, log_func=print):
+    def __init__(self, fit, mu, cr, p_cr, p_elite, log_func=print):
         super(GA, self).__init__()
         self.fit = fit
         self.mu = mu
         self.cr = cr
         self.p_elite = p_elite
-        self.p_mu = p_mu
         self.p_cr = p_cr
         self.fitness = []
         self.log = log_func
@@ -48,8 +47,8 @@ class GA(object):
             a list of good individuals found throughout the search
         """
         self.n = n = len(pop)
-        elites = int(self.len * self.p_elite)
-        self.pop = [i in pop]
+        elites = int(n * self.p_elite)
+        self.pop = [i for i in pop]
         good = []
         for i in range(1, iter+1):
             self.log(f"Iteration {i} started ...")
@@ -101,10 +100,10 @@ class GA(object):
 
         # roulette wheel selection
         cdf = np.cumsum(self.fitness)
-        cdf /= cdf[-1]
+        cdf = cdf / cdf[-1]
         new_pop = []
         new_fit = []
-        for i in range(n):
+        for i in range(self.n):
             r = np.random.rand()
             sample = sum(r > cdf)
             new_pop.append(self.pop[sample])
@@ -114,6 +113,6 @@ class GA(object):
         self.fitness = new_fit
 
         # Sort by fitness decreasing
-        idx = np.argsort(seld.fitness)
-        self.pop = self.pop[idx]
-        self.fitness = self.fitness[idx]
+        idx = np.argsort(self.fitness)[::-1]
+        self.pop = [self.pop[i] for i in idx]
+        self.fitness = [self.fitness[i] for i in idx]
