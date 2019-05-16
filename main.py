@@ -9,9 +9,10 @@ from numpy.random import randint, rand
 def fit(g):
     if g.order() < 1:
         print("empty graph")
-    return g.lovasz_theta() / (len(g.independent_set()))
+    return g.lovasz_theta() / (len(g.independent_set()) * g.order())
 
 def mu(g):
+    """Choose a random edge uv, if exists remove it if not add it"""
     g = g.copy()
     v = randint(0, g.order())
     u = randint(0, g.order())
@@ -26,6 +27,7 @@ def mu(g):
     return g
 
 def cr(g1, g2):
+    """Create a new graph and add edges randomly from parents."""
     e1 = g1.edges()
     e2 = g2.edges()
     g = Graph({v:[] for v in range(0, g1.order())})
@@ -46,6 +48,7 @@ def cr(g1, g2):
 
 
 def rand_graph(n, m):
+    "Generate a random graph with n vertices and m edges"
     g = { v: [] for v in range(n)}
     i = 0
     while i < m:
@@ -58,12 +61,13 @@ def rand_graph(n, m):
             i += 1
     return Graph(g)
 
-n = 10
-pop_size = 200
+n = 7 # graph size
+pop_size = 100
+threshold = 0.11
 pop = [rand_graph(10, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
 
-ga = GA(fit, mu, cr, 0.3, 0.1)
-results = ga.run(pop, 100000, 1.15)
+ga = GA(fit, mu, cr, 0.3, 0.2)
+results = ga.run(pop, 100, threshold)
 results = sorted(results, key = lambda x: -x[1])
 for g, fit in results:
     print(g.adjacency_matrix())
