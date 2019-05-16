@@ -2,7 +2,7 @@
 A simple implementation of genetic algorithm.
 """
 import numpy as np
-
+import sys
 
 class GA(object):
     """A generic class which provides the basic functions
@@ -24,7 +24,8 @@ class GA(object):
         proportion of mutations
     """
 
-    def __init__(self, fit, mu, cr, p_cr, p_elite, log_func=print):
+    def __init__(self, fit, mu, cr, p_cr, p_elite,
+    log_func=lambda x: sys.stdout.write(x + '\n')):
         super(GA, self).__init__()
         self.fit = fit
         self.mu = mu
@@ -48,24 +49,28 @@ class GA(object):
         """
         self.n = n = len(pop)
         elites = int(n * self.p_elite)
-        self.pop = [i for i in pop]
+        self.pop = [i.copy() for i in pop]
         good = []
+        best = None
         for i in range(1, iter+1):
-            self.log(f"Iteration {i} started ...")
+            if i % 10 == 1:
+                self.log("Iteration " + str(i) + "/" + str(iter)+ " ...")
             # 1. Selection
             self._select()
             # save the good ones
             for j in range(n):
-                if self.fitness[j] >= gt:
-                    good.append((self.pop[j], self.fitness[j]))
-                    self.log(f"Found a good individual with fitness : {self.fitness[j]}")
+                if best is None or self.fitness[j] > best:
+                    best = self.fitness[j]
+                if self.fitness[j] >= gt and (self.pop[j], self.fitness[j]) not in good:
+                    good.append((self.pop[j].copy(), self.fitness[j]))
+                    self.log("Found a good individual with fitness :" +  str(self.fitness[j]) + "(best: " + str(best) + ")")
                 else:
                     break
 
             # 2. generate the new population
             # 2.1 Elitisism
             new_pop = []
-            new_pop.extend(self.pop[:elites])
+            new_pop.extend([x.copy() for x in self.pop[:elites]])
 
             # 2.2 use cross over and mutation to generate the remaining individuals
             for j in range(n - elites):
@@ -99,20 +104,19 @@ class GA(object):
             self.fitness.append(self.fit(self.pop[i]))
 
         # roulette wheel selection
-        cdf = np.cumsum(self.fitness)
+        vals = np.array(self.fitness)
+        vals = np.exp(vals)
+        cdf = np.cumsum(vals)
         cdf = cdf / cdf[-1]
         new_pop = []
         new_fit = []
         for i in range(self.n):
             r = np.random.rand()
             sample = sum(r > cdf)
-            new_pop.append(self.pop[sample])
+            new_pop.append(self.pop[sample].copy())
             new_fit.append(self.fitness[sample])
 
-        self.pop = new_pop
-        self.fitness = new_fit
-
         # Sort by fitness decreasing
-        idx = np.argsort(self.fitness)[::-1]
-        self.pop = [self.pop[i] for i in idx]
-        self.fitness = [self.fitness[i] for i in idx]
+        idx = np.argsort(new_fit)[::-1]
+        self.pop = [new_pop[i].copy() for i in idx]
+        self.fitness = [new_fit[i] for i in idx]
