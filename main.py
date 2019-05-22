@@ -16,8 +16,8 @@ def fit(g):
 
 def mu(g):
     """Choose a random edge uv, if exists remove it if not add it"""
-    if g.order()==1:
-        return RandomGNP(10, .5, directed=False)
+    # if g.order()==1:
+    #     return RandomGNP(20, .5, directed=False)
     g = g.copy()
     v = randint(0, g.order())
     u = randint(0, g.order())
@@ -117,10 +117,10 @@ def rand_graph(n, m):
 n = 7 # graph size
 pop_size = 100
 threshold = 0.11
-pop = [rand_graph(10, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
+pop = [rand_graph(20, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
 
 ga = GA(fit, mu, cr, 0.5, 0.1)
-results = ga.run(pop, 100, threshold)
+results = ga.run(pop, 1000, threshold)
 results = sorted(results, key = lambda x: -x[1])
 for g, fit in results:
     print(g.adjacency_matrix())
