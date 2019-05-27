@@ -2,9 +2,13 @@
 import sys
 import numpy as np
 import itertools
+import bronkerbosch as BON
+import random
 from numpy.random import randint, rand
 from sage.all import *
 from sage.graphs.graph_generators_pyx import RandomGNP
+
+"""Fitness Functions"""
 
 def fit(g):
     if g.order() < 1:
@@ -18,10 +22,10 @@ def fit_eigen_values(g):
     eigenvalues = np.linalg.eigh(adjacency)[0]
     largest = eigenvalues[-1]
     second_largest = max(abs(eigenvalues[0]),abs(eigenvalues[-2]))
-    #print largest
-    #print second_largest
     return (largest - second_largest) / largest
+#TODO: reward regularity by calculating the standard deviation of the degree list.
 
+"""Mutation Functions"""
 def mu(g):
     """Choose a random edge uv, if exists remove it if not add it"""
     g = g.copy()
@@ -37,6 +41,75 @@ def mu(g):
 
     return g
 
+def update_independent_sets(indep_sets, edge, neighbors0, neighbors1):
+    """Assumes that edge is removed and updates the maximal independent sets."""
+    new_indep_sets = []
+    added_new_edge = False
+    for i in indep_sets:
+        if (not edge[0] in i) and (not edge[1] in i):
+            new_indep_sets.append(i)
+        elif edge[0] in i:
+            if neighbors1.intersection(i)==set([]):
+                new_indep_sets.append(i.union({edge[1]}))
+                added_new_edge = True
+            else:
+                new_indep_sets.append(i)
+        elif edge[1] in i:
+            if neighbors0.intersection(i)==set([]):
+                new_indep_sets.append(i.union({edge[0]}))
+                added_new_edge = True
+            else:
+                new_indep_sets.append(i)
+    if added_new_edge == False:
+        new_indep_sets.append({edge[0],edge[1]})
+    unique_indep_sets = []
+    for i in new_indep_sets: #make unique
+        if not i in unique_indep_sets:
+            unique_indep_sets.append(i)
+    return unique_indep_sets
+
+def remove_extra_edges(g):
+    new_graph = g.copy()
+    edges = len(new_graph.edges())
+    indep_sets = None
+    new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets)
+    while(len(new_graph.edges()) != edges ):
+        edges = len(new_graph.edges())
+        new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets)
+    return new_graph, indep_sets
+
+def _remove_extra_edge(g, indep_sets = None):
+    """Calculates the simplical complex of independent sets of g.
+    If an edge doesnt intersect a maximal independent set, it can be removed
+    without increasing the size of the independence number.
+    """
+    dict = BON.dict_from_adjacency_matrix(g.complement())
+    if indep_sets is None:
+        indep_sets = BON.find_cliques(dict)
+    max_size = 0
+    max_indep_sets = []
+    new_graph = g.copy()
+    for i in indep_sets:
+        if len(i) > max_size:
+            max_size = len(i)
+            max_indep_sets = [i]
+        elif len(i) == max_size:
+            max_indep_sets.append(i)
+    vertices_in_max_indep_set = reduce(lambda x,y: union(x,y), max_indep_sets, set([]))
+    removeable_edges = [e for e in g.edges() if (not e[0] in vertices_in_max_indep_set) and (not e[1] in vertices_in_max_indep_set)]
+    if len(removeable_edges)==0:
+        print "no edges to remove"
+        return new_graph, indep_sets
+    else:
+        e = removeable_edges[randint(0,len(removeable_edges)-1)]
+        print "deleting ", e
+        new_graph.delete_edge(e)
+        #In the future, use update independent sets instead
+        new_indep_sets = BON.find_cliques((BON.dict_from_adjacency_matrix(new_graph.complement())))
+        return new_graph, new_indep_sets
+
+
+"""Crossover Functions"""
 def cr1(g1, g2):
     """Create a new graph and add edges randomly from parents."""
     e1 = g1.edges()
