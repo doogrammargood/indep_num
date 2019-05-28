@@ -23,6 +23,10 @@ def fit_eigen_values(g):
     largest = eigenvalues[-1]
     second_largest = max(abs(eigenvalues[0]),abs(eigenvalues[-2]))
     return (largest - second_largest) / largest
+
+# def fit_regularity(g):
+#     """ returns the reciprocal of the standard deviation of the degree list """
+#     """ We take the reciprocal so that regular graphs are the most fit."""
 #TODO: reward regularity by calculating the standard deviation of the degree list.
 
 """Mutation Functions"""
@@ -42,7 +46,9 @@ def mu(g):
     return g
 
 def update_independent_sets(indep_sets, edge, neighbors0, neighbors1):
-    """Assumes that edge is removed and updates the maximal independent sets."""
+    """Assumes that edge is removed and updates the maximal independent sets.
+    This function currently has fatal flaws. I think we must repeat
+    the bronkerbosch algorithm with the two newly independent vertices."""
     new_indep_sets = []
     added_new_edge = False
     for i in indep_sets:
@@ -69,6 +75,11 @@ def update_independent_sets(indep_sets, edge, neighbors0, neighbors1):
     return unique_indep_sets
 
 def remove_extra_edges(g):
+    """Calculates the maximal independent sets of g.
+    If an edge doesnt intersect a maximal independent set, it can be removed
+    without increasing the size of the independence number.
+    We do this repeatedly until no such edges remain.
+    """
     new_graph = g.copy()
     edges = len(new_graph.edges())
     indep_sets = None
@@ -79,15 +90,12 @@ def remove_extra_edges(g):
     return new_graph, indep_sets
 
 def _remove_extra_edge(g, indep_sets = None):
-    """Calculates the simplical complex of independent sets of g.
-    If an edge doesnt intersect a maximal independent set, it can be removed
-    without increasing the size of the independence number.
-    """
+    """Returns a new graph by removing an edge from g. """
     dict = BON.dict_from_adjacency_matrix(g.complement())
     if indep_sets is None:
-        indep_sets = BON.find_cliques(dict)
+        indep_sets = BON.find_cliques(dict) #a list of all maximal-by-inclusion independent sets.
     max_size = 0
-    max_indep_sets = []
+    max_indep_sets = [] #a list of all maximal-by-size independent sets
     new_graph = g.copy()
     for i in indep_sets:
         if len(i) > max_size:
@@ -95,8 +103,8 @@ def _remove_extra_edge(g, indep_sets = None):
             max_indep_sets = [i]
         elif len(i) == max_size:
             max_indep_sets.append(i)
-    vertices_in_max_indep_set = reduce(lambda x,y: union(x,y), max_indep_sets, set([]))
-    removeable_edges = [e for e in g.edges() if (not e[0] in vertices_in_max_indep_set) and (not e[1] in vertices_in_max_indep_set)]
+    vertices_in_max_indep_set = set(reduce(lambda x,y: union(x,y), max_indep_sets, set([])))
+    removeable_edges = [e for e in g.edges() if len({e[0],e[1]}.intersection(vertices_in_max_indep_set))==0]
     if len(removeable_edges)==0:
         print "no edges to remove"
         return new_graph, indep_sets

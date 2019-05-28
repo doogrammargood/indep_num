@@ -75,7 +75,7 @@ def test_eigen_fitness():
 def test_remove_extra_edges():
     #g = graphs.PetersenGraph()
     #g = graphs.GossetGraph()
-    g = graphs.RandomGNP(30, .5)
+    g = graphs.RandomGNP(80, .5)
     print g.adjacency_matrix()
     r=g
     r, _ = FUN.remove_extra_edges(r)
@@ -87,6 +87,7 @@ def test_remove_extra_edges():
     print "test complete"
 
 def test_update_independent_sets():
+    """This testing reveals that the function doesnt work."""
     g = graphs.RandomGNP(10, .5)
     indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(g.complement()))
     new_graph, new_indep_sets = FUN.remove_extra_edges(g)
