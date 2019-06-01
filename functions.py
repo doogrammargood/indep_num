@@ -57,13 +57,13 @@ def add_edge_to_max_indep_set(g):
     """Chooses a random maximal independent set to add an edge to"""
     g = g.copy()
     indep_sets = BON.cliques_of_graph(g.complement(), maximal=True)
-    index = randint(0,len(indep_sets)-1)
+    index = randint(0,len(indep_sets))
     indp = indep_sets[index]
 
-    v = randint(0, len(indp)-1)
-    u = randint(0, len(indp)-1)
+    v = randint(0, len(indp))
+    u = randint(0, len(indp))
     while u == v:
-        u = randint(0, len(indp)-1)
+        u = randint(0, len(indp))
     g.add_edge(u,v)
     return g
 
@@ -129,7 +129,9 @@ def _remove_extra_edge(g, indep_sets = None):
         #print "no edges to remove"
         return new_graph, indep_sets
     else:
-        e = removeable_edges[randint(0,len(removeable_edges)-1)]
+        r = randint(0,len(removeable_edges)-1) #the -1 shouldn't be there, but it errors out without it.
+
+        e = removeable_edges[r]
         #print "deleting ", e
         new_graph.delete_edge(e)
         #In the future, use update independent sets instead
@@ -233,7 +235,7 @@ def cr4(g1,g2):
                     new_graph.delete_edge(edge)
             else:
                 new_graph.add_edge(edge)
-    new_graph, _ = remove_extra_edges(new_graph)
+    #new_graph, _ = remove_extra_edges(new_graph)
     return new_graph
 
 def cr5(g1,g2):

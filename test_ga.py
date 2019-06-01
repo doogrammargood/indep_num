@@ -115,7 +115,7 @@ def run_tests():
 #test_update_independent_sets()
 #test_add_edge_to_max_indep_set()
 test_remove_extra_edges()
-#run_tests()
+run_tests()
 def test_fit_regularity():
     g = graphs.RandomGNP(10, .5)
     print FUN.fit_regularity(g)
