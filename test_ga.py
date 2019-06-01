@@ -4,6 +4,7 @@ import functions as FUN
 import bronkerbosch as BON
 #from main import cr3, cr4, fit_eigen_values
 import numpy as np
+import lovasz as LOV
 
 def fit(x):
     return 10 - (x[0] + x[1]) ** 2
@@ -73,18 +74,13 @@ def test_eigen_fitness():
     print FUN.fit_eigen_values(g)
 
 def test_remove_extra_edges():
-    #g = graphs.PetersenGraph()
-    #g = graphs.GossetGraph()
-    g = graphs.RandomGNP(80, .5)
-    print g.adjacency_matrix()
+    g = graphs.RandomGNP(20, .5)
+    #print g.adjacency_matrix()
     r=g
     r, _ = FUN.remove_extra_edges(r)
-
-    print FUN.fit(g)
-    print len(g.edges())
-    print FUN.fit(r)
-    print len(r.edges())
-    print "test complete"
+    if len(r.independent_set()) != len(g.independent_set()):
+        print "remove extra edges failed"
+    #print "removed ", len(g.edges()) - len(r.edges()), " edges"
 
 def test_update_independent_sets():
     """This testing reveals that the function doesnt work."""
@@ -92,19 +88,24 @@ def test_update_independent_sets():
     indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(g.complement()))
     new_graph, new_indep_sets = FUN.remove_extra_edges(g)
     correct_indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(new_graph.complement()))
-    print "lengths"
-    print len(correct_indep_sets), len(new_indep_sets)
-    print e
-    print indep_sets
-    print "---"
-    print correct_indep_sets
-    print "---"
-    print new_indep_sets
+    # print "lengths"
+    # print len(correct_indep_sets), len(new_indep_sets)
+    # print e
+    # print indep_sets
+    # print "---"
+    # print correct_indep_sets
+    # print "---"
+    # print new_indep_sets
     for c in correct_indep_sets:
         assert c in new_indep_sets
     for i in new_indep_sets:
         assert i in correct_indep_sets
     #assert correct_indep_sets == new_indep_sets
+
+def test_add_edge_to_max_indep_set():
+    g = graphs.RandomGNP(10, .5)
+    new_graph = FUN.add_edge_to_max_indep_set(g)
+    print "test complete"
 
 def run_tests():
     #test_cr3()
@@ -112,5 +113,24 @@ def run_tests():
     test_eigen_fitness()
     test_remove_extra_edges()
 #test_update_independent_sets()
+#test_add_edge_to_max_indep_set()
 test_remove_extra_edges()
 #run_tests()
+def test_fit_regularity():
+    g = graphs.RandomGNP(10, .5)
+    print FUN.fit_regularity(g)
+
+def test_large_lovasz_subgraph():
+    g = graphs.RandomGNP(10, .5)
+    FUN._subgraph_mutate(g)
+    # ans = LOV.lovasz_theta(g, long_return = True)
+    # theta = ans['theta']
+    # B = ans['B']
+    # print theta, B
+    # diag = np.diagonal(B)
+    # #values = [b**0.5 for b in diag]
+    # print diag * theta
+    # print sum(diag*theta)
+    #print np.trace(B)
+#test_new_lovasz()
+#test_fit_regularity()
