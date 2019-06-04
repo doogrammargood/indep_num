@@ -74,13 +74,16 @@ def test_eigen_fitness():
     print FUN.fit_eigen_values(g)
 
 def test_remove_extra_edges():
-    g = graphs.RandomGNP(20, .5)
+    g = graphs.RandomGNP(60, .5)
     #print g.adjacency_matrix()
     r=g
     r, _ = FUN.remove_extra_edges(r)
+
     if len(r.independent_set()) != len(g.independent_set()):
         print "remove extra edges failed"
-    #print "removed ", len(g.edges()) - len(r.edges()), " edges"
+    print "removed ", len(g.edges()) - len(r.edges()), " edges"
+    print FUN.fit(g)
+    print FUN.fit(r)
 
 def test_update_independent_sets():
     """This testing reveals that the function doesnt work."""
@@ -115,7 +118,7 @@ def run_tests():
 #test_update_independent_sets()
 #test_add_edge_to_max_indep_set()
 test_remove_extra_edges()
-run_tests()
+#run_tests()
 def test_fit_regularity():
     g = graphs.RandomGNP(10, .5)
     print FUN.fit_regularity(g)

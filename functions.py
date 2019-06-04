@@ -8,7 +8,7 @@ import lovasz as LOV
 from numpy.random import randint, rand
 from sage.all import *
 from sage.graphs.graph_generators_pyx import RandomGNP
-
+from random import shuffle
 """Fitness Functions"""
 
 def fit(g):
@@ -67,36 +67,6 @@ def add_edge_to_max_indep_set(g):
     g.add_edge(u,v)
     return g
 
-
-def update_independent_sets(indep_sets, edge, neighbors0, neighbors1):
-    """Assumes that edge is removed and updates the maximal independent sets.
-    This function currently has fatal flaws. I think we must repeat
-    the bronkerbosch algorithm with the two newly independent vertices."""
-    new_indep_sets = []
-    added_new_edge = False
-    for i in indep_sets:
-        if (not edge[0] in i) and (not edge[1] in i):
-            new_indep_sets.append(i)
-        elif edge[0] in i:
-            if neighbors1.intersection(i)==set([]):
-                new_indep_sets.append(i.union({edge[1]}))
-                added_new_edge = True
-            else:
-                new_indep_sets.append(i)
-        elif edge[1] in i:
-            if neighbors0.intersection(i)==set([]):
-                new_indep_sets.append(i.union({edge[0]}))
-                added_new_edge = True
-            else:
-                new_indep_sets.append(i)
-    if added_new_edge == False:
-        new_indep_sets.append({edge[0],edge[1]})
-    unique_indep_sets = []
-    for i in new_indep_sets: #make unique
-        if not i in unique_indep_sets:
-            unique_indep_sets.append(i)
-    return unique_indep_sets
-
 def remove_extra_edges(g):
     """Calculates the maximal independent sets of g.
     If an edge doesnt intersect a maximal independent set, it can be removed
@@ -112,6 +82,35 @@ def remove_extra_edges(g):
         new_graph, indep_sets = _remove_extra_edge(new_graph, indep_sets)
     return new_graph, indep_sets
 
+def _can_remove(e, max_indep_sets):
+    """Returns true if we can remove this edge without affecting the independence number.
+    If e[0] is in some max independent set, i, then i-{e[0]} U {e[1]} must be another max indep. set
+    """
+    sets_with_endpoint0 = [m for m in max_indep_sets if e[0] in m]
+    for s in sets_with_endpoint0:
+        if set([v for v in s if v != e[0] ] +[e[1]]) in max_indep_sets:
+            return False
+    return True
+
+def _update_indep_sets(g, e, indep_sets ):
+    """g is the new graph, with edge e removed.
+    e is the edge which was removed,
+    and indep_sets is a list of the maximal independent sets before the edge was removed.
+    Returns the list of maximal independent sets of g.
+    """
+    non_neighbors_of_e =set([v for  v in g.vertices() if not v in ( g.neighbors(e[0]) + g.neighbors(e[1]) )])
+    subgraph_without_e = g.subgraph(non_neighbors_of_e)
+    #new_indep_sets = BON.cliques_of_graph(subgraph_without_e.complement())
+    new_indep_sets = [i.intersection(non_neighbors_of_e).union({e[0],e[1]}) for i in indep_sets]
+    #[i for i in indep_sets if i not]
+    extra_indep_sets=[]
+    for i in indep_sets:
+        if not (e[0] in i ) and ( i.union({e[1]}) in new_indep_sets ):
+            if not (e[1] in i ) and (i.union({e[0]}) in new_indep_sets ):
+                extra_indep_sets.append(i)
+    new_indep_sets = new_indep_sets + extra_indep_sets
+    return new_indep_sets
+
 def _remove_extra_edge(g, indep_sets = None):
     """Returns a new graph by removing an edge from g. """
     #dict = BON.dict_from_adjacency_matrix(g.complement())
@@ -122,9 +121,16 @@ def _remove_extra_edge(g, indep_sets = None):
     max_indep_sets = [] #a list of all maximal-by-size independent sets
     new_graph = g.copy()
     max_indep_sets = [i for i in indep_sets if len(i) == len(indep_sets[-1])]
-
-    vertices_in_max_indep_set = set(reduce(lambda x,y: union(x,y), max_indep_sets, set([])))
-    removeable_edges = [e for e in g.edges() if len({e[0],e[1]}.intersection(vertices_in_max_indep_set))==0]
+    #removeable_edges = [e for e in g.edges() if _can_remove(e, max_indep_sets)]
+    edges=g.edges()
+    shuffle(edges)
+    for e in edges:
+        if _can_remove(e, max_indep_sets):
+            new_graph.delete_edge(e)
+            new_indep_sets = _update_indep_sets(new_graph,e,indep_sets)
+            return new_graph, new_indep_sets
+    return new_graph, indep_sets
+    #vertices_in_max_indep_set = set(reduce(lambda x,y: union(x,y), max_indep_sets, set([])))
     if len(removeable_edges)==0:
         #print "no edges to remove"
         return new_graph, indep_sets
@@ -135,7 +141,8 @@ def _remove_extra_edge(g, indep_sets = None):
         #print "deleting ", e
         new_graph.delete_edge(e)
         #In the future, use update independent sets instead
-        new_indep_sets = BON.find_cliques((BON.dict_from_adjacency_matrix(new_graph.complement())))
+        #new_indep_sets = BON.find_cliques((BON.dict_from_adjacency_matrix(new_graph.complement())))
+        new_indep_sets = _update_indep_sets(new_graph,e,indep_sets)
         return new_graph, new_indep_sets
 
 def _large_lovasz_subgraph(g, fraction = 0.5):

@@ -7,6 +7,7 @@
 from collections import defaultdict
 import numpy as np
 
+"""added code"""
 def cliques_of_graph(graph, maximal = False):
     #graph is a sage graph.
     dict = dict_from_adjacency_matrix(graph)
@@ -16,6 +17,7 @@ def cliques_of_graph(graph, maximal = False):
     else:
         return [c for c in cliques if len(c) == len(cliques[-1])]
 
+
 def dict_from_adjacency_matrix(graph):
     #takes a Sage graph and returns a dictionary
     array = np.array(graph.adjacency_matrix()).tolist()
@@ -23,6 +25,7 @@ def dict_from_adjacency_matrix(graph):
         return [v for v in range(len(array)) if array[key][v]==1]
     return {key:neighbors(key) for key in range(len(array)) }
 
+"""---------"""
 def find_cliques(graph): #graph must be a dictionary
   p = set(graph.keys())
   r = set()
