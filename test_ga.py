@@ -74,7 +74,7 @@ def test_eigen_fitness():
     print FUN.fit_eigen_values(g)
 
 def test_remove_extra_edges():
-    g = graphs.RandomGNP(60, .5)
+    g = graphs.RandomGNP(20, .5)
     #print g.adjacency_matrix()
     r=g
     r, _ = FUN.remove_extra_edges(r)
@@ -86,7 +86,6 @@ def test_remove_extra_edges():
     print FUN.fit(r)
 
 def test_update_independent_sets():
-    """This testing reveals that the function doesnt work."""
     g = graphs.RandomGNP(10, .5)
     indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(g.complement()))
     new_graph, new_indep_sets = FUN.remove_extra_edges(g)
@@ -115,9 +114,10 @@ def run_tests():
     test_cr4()
     test_eigen_fitness()
     test_remove_extra_edges()
-#test_update_independent_sets()
+    test_update_independent_sets()
+
 #test_add_edge_to_max_indep_set()
-test_remove_extra_edges()
+#test_remove_extra_edges()
 #run_tests()
 def test_fit_regularity():
     g = graphs.RandomGNP(10, .5)
@@ -125,15 +125,24 @@ def test_fit_regularity():
 
 def test_large_lovasz_subgraph():
     g = graphs.RandomGNP(10, .5)
-    FUN._subgraph_mutate(g)
-    # ans = LOV.lovasz_theta(g, long_return = True)
-    # theta = ans['theta']
-    # B = ans['B']
-    # print theta, B
-    # diag = np.diagonal(B)
-    # #values = [b**0.5 for b in diag]
-    # print diag * theta
-    # print sum(diag*theta)
-    #print np.trace(B)
-#test_new_lovasz()
+    #FUN._subgraph_mutate(g)
+    old_lov_theta = g.lovasz_theta()
+    for i in range(10):
+        FUN.mutate_avoid_large_subgraph(g)
+    print "old theta: ", old_lov_theta
+    ans = LOV.lovasz_theta(g, long_return = True)
+    theta = ans['theta']
+    B = ans['B']
+    print theta, B
+    diag = np.diagonal(B)
+    #values = [b**0.5 for b in diag]
+    print diag * theta
+    print sum(diag*theta)
 #test_fit_regularity()
+def test_cr6():
+    g1 = graphs.RandomGNP(10, .75)
+    g2 = graphs.RandomGNP(10, .75)
+    print FUN.cr7(g1,g2)
+#test_cr6()
+test_remove_extra_edges()
+#test_large_lovasz_subgraph()

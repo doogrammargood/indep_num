@@ -34,7 +34,7 @@ def fit_regularity(g):
 
 def fit_with_regularity(g):
     """a weighted average of fitness and regularity."""
-    return 0.95*fit(g) + 0.05*fit_regularity(g)
+    return 0.90*fit(g) + 0.1*fit_regularity(g)
 
 
 """Mutation Functions"""
@@ -50,7 +50,9 @@ def mu(g):
             g.delete_edge(u, v)
     else:
         g.add_edge(u, v)
-
+    # r = np.random.rand()
+    # if r<0.01:
+    #     g, _ = remove_extra_edges(g)
     return g
 
 def add_edge_to_max_indep_set(g):
@@ -182,7 +184,15 @@ def mutate_avoid_large_subgraph(g):
 
     return g
 
-
+def mutate_add_then_remove_edges(g):
+    g = g.copy()
+    g_c = g.complement()
+    edges = g_c.edges()
+    shuffle(edges)
+    for e in edges[:15]:
+        g.add_edge(e)
+    g, _ = remove_extra_edges(g)
+    return g
 """Crossover Functions"""
 def cr1(g1, g2):
     """Create a new graph and add edges randomly from parents."""
@@ -265,14 +275,100 @@ def cr5(g1,g2):
             for k in [k for k in g2.neighbors(v) if k>v]:
                 new_graph.add_edge(v,k)
 
-    #new_graph, _ = remove_extra_edges(new_graph)
+    new_graph, _ = remove_extra_edges(new_graph)
     if new_graph.order()!=g1.order():
         print "grapsh have changed order."
         print new_graph.vertices()
     return new_graph
 
+def _vertex_cost_list(g):
+    """Returns a list of pairs [vertex_number,cost] sorted by cost."""
+    solution = LOV.lovasz_theta(g, long_return = True)
+    theta = solution['theta']
+    witness = solution['B']
+    costs = np.diagonal(witness)*theta
+    costs = enumerate(costs) #adds an index
+    costs = sorted(costs, key = lambda x: -x[1]) #sort by the cost
+    return costs
+def cr6(g1, g2):
+    """Orders the vertices of g1 and g2 according to their contribution to lovasz theta.
+    Find subgraphs sg1 and sg2 such that sg1.order()+sg2.order()==g1.order()
+                           and such that the total sum of contributions is maximized.
+    add edges randomly between sg1 and sg2, and this produces the offspring.
+    This function assumes g1 and g2 have the same number of vertices. Might fail otherwise.
+    """
+    costs_g1 = _vertex_cost_list(g1)
+    costs_g2 = _vertex_cost_list(g2)
+    index_g1 = 0
+    index_g2 = 0
+    #print costs_g1
+    while(index_g1 + index_g2 < g1.order()):
+        if costs_g1[index_g1][1] > costs_g2[index_g2][1]:
+            index_g1 += 1
+        else:
+            index_g2 += 1
+    sg1 = g1.subgraph([c[0] for c in costs_g1[:index_g1]])
+    sg2 = g2.subgraph([c[0] for c in costs_g2[:index_g2]])
+    # print sg1.vertices()
+    # print sg1.edges()
+    # print sg2.vertices()
+    # print sg2.edges()
+    child_graph = sg1 + sg2 #These vertices are labeled [0..n]
+    # print child_graph.vertices()
+    # print child_graph.adjacency_matrix()
+    for v1, v2 in itertools.product(range(sg1.order()),range(sg2.order())):
+        #r = np.random.rand()
+        child_graph.add_edge(v1,v2+sg1.order())
+    if child_graph.order()!= g1.order():
+        print "order changed"
+    child_graph, _ = remove_extra_edges(child_graph)
+    #print child_graph.adjacency_matrix()
+    #print child_graph.vertices()
+    #for e in itertools.product(sg1.vertices(),sg2.vertices())
+
+    return child_graph
+    #values = [b**0.5 for b in diag]
+    #return valuable_vertices
     #[np.random.rand() for v in g1.vertices()]
 
+def cr7(g1,g2):
+    """Same as cr4 but aligning the graphs according to vertex cost.
+    """
+    costs_g1 = _vertex_cost_list(g1)
+    g1_new_order = [c[0] for c in costs_g1] #
+    costs_g2 = _vertex_cost_list(g2)
+    g2_new_order = [c[0] for c in costs_g2]
+    g2_new_order.reverse()
+    dict={}
+    for v in range(g1.order()):
+        neighbors = []
+        vertex_in_g1 = g1_new_order[v]
+        vertex_in_g2 = g2_new_order[v]
+        g1_neighbors = g1.neighbors(vertex_in_g1)
+        g2_neighbors = g2.neighbors(vertex_in_g2)
+        g1_neighbors = [a for a,b in enumerate(g1_new_order) if b in g1_neighbors]
+        g2_neighbors = [a for a,b in enumerate(g2_new_order) if b in g2_neighbors]
+        total_neighbors = g1_neighbors + g2_neighbors
+        for t in total_neighbors:
+            if t not in neighbors:
+                if t in g1_neighbors and t in g2_neighbors:
+                    neighbors.append(t)
+                else:
+                    r = np.random.rand()
+                    if r>0.5:
+                        neighbors.append(t)
+        #print neighbors
+        dict[v]=neighbors
+    #print dict
+    return Graph(dict)
+
+def cr8(g1,g2):
+    """ adds an edge if there is an edge in g1 or in g2"""
+    new_graph = g1.copy()
+    for e in g2.edges():
+        new_graph.add_edge(e)
+    new_graph,_=remove_extra_edges(new_graph)
+    return new_graph
 
 def rand_graph(n, m):
     "Generate a random graph with n vertices and m edges"
