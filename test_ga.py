@@ -46,14 +46,19 @@ graph_list = [ graphs.BidiakisCube(),
            graphs.GrotzschGraph(),
            graphs.HoltGraph()]
 
+def test_crossover_function(l):
+    """Expect l to be a crossover function.
+    generates two random graphs and checks that l(g1, g2)
+    does not error out and returns a graph of the same size."""
+    g1 = graphs.RandomGNP(20, .5)
+    g2 = graphs.RandomGNP(20, .5)
+    child_graph = l(g1, g2)
+    assert child_graph.order() == 20
 def test_cr3():
-    """The order should be additive"""
+    """This test does not work."""
     for g1 in graph_list:
         for g2 in graph_list:
             q = FUN.cr3(g1, g2)
-            print q.order()
-            print g1.order()
-            print g2.order()
             assert q.order() == g1.order() + g2.order()
 
 def test_cr4():
@@ -74,48 +79,83 @@ def test_eigen_fitness():
     print FUN.fit_eigen_values(g)
 
 def test_remove_extra_edges():
+    """Checks that remove_extra_edges does not affect the independence number."""
     g = graphs.RandomGNP(20, .5)
-    #print g.adjacency_matrix()
     r=g
     r, _ = FUN.remove_extra_edges(r)
-
-    if len(r.independent_set()) != len(g.independent_set()):
-        print "remove extra edges failed"
-    print "removed ", len(g.edges()) - len(r.edges()), " edges"
-    print FUN.fit(g)
-    print FUN.fit(r)
+    assert len(r.independent_set()) == len(g.independent_set())
 
 def test_update_independent_sets():
+    """Generates a random graph, finds the independent sets,
+    performs remove_extra_edges, and finds the independent sets again to
+    ensure that remove_extra_edges returns the new independent sets correctly.
+    """
     g = graphs.RandomGNP(10, .5)
     indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(g.complement()))
     new_graph, new_indep_sets = FUN.remove_extra_edges(g)
     correct_indep_sets = BON.find_cliques(BON.dict_from_adjacency_matrix(new_graph.complement()))
-    # print "lengths"
-    # print len(correct_indep_sets), len(new_indep_sets)
-    # print e
-    # print indep_sets
-    # print "---"
-    # print correct_indep_sets
-    # print "---"
-    # print new_indep_sets
     for c in correct_indep_sets:
         assert c in new_indep_sets
     for i in new_indep_sets:
         assert i in correct_indep_sets
-    #assert correct_indep_sets == new_indep_sets
 
 def test_add_edge_to_max_indep_set():
     g = graphs.RandomGNP(10, .5)
     new_graph = FUN.add_edge_to_max_indep_set(g)
     print "test complete"
 
-def run_tests():
-    #test_cr3()
-    test_cr4()
-    test_eigen_fitness()
-    test_remove_extra_edges()
+"""aggregate tests"""
+def helper_tests():
+    """runs all the helper tests"""
     test_update_independent_sets()
+    test_remove_extra_edges()
+def crossover_tests():
+    """runs all the crossover tests"""
+    crossovers = [FUN.cr4,FUN.cr5,FUN.cr6,FUN.cr7,FUN.cr8]
+    #These are the crossover functions which preserve the order of the graph.
+    for c in crossovers:
+        test_crossover_function(c)
+    test_cr4()
+def test_mutation_function(l):
+    """expect l to be a mutation function."""
+    g = graphs.RandomGNP(20, .5)
+    mutant_graph = l(g)
+    #print l.__name__
+    #print mutant_graph.order()
+    assert mutant_graph.order() == 20
 
+def mutation_tests():
+    mutation_functions = [FUN.mu, FUN.mutate_avoid_large_subgraph,FUN.mutate_add_then_remove_edges, FUN.add_edge_to_max_indep_set]
+    for m in mutation_functions:
+        test_mutation_function(m)
+
+def fitness_tests():
+    return
+
+"""aggregate tests"""
+
+def test_run_ga():
+    """Runs the genetic algorithm with various mutation and crossover functions to make
+    sure that nothing errors out."""
+    n = 10 # graph size
+    pop_size = 100
+    threshold = 0.130
+    pop = [FUN.rand_graph(n, randint(n, n*(n-1)/2 + 1)) for _ in range(pop_size)]
+    ga1 = GA(FUN.fit, FUN.mutate_add_then_remove_edges, FUN.cr6, 0.3, 0.2)
+    results1 = ga1.run(pop, 20, threshold)
+    ga2 = GA(FUN.fit_with_regularity, FUN.mu, FUN.cr7, 0.3, 0.2)
+    results2 = ga2.run(pop, 20, threshold)
+    ga3 = GA(FUN.fit, FUN.mutate_avoid_large_subgraph, FUN.cr5, 0.3, 0.2)
+    results3 = ga3.run(pop, 20, threshold)
+
+def run_tests():
+    for i in range(20):
+        helper_tests()
+        crossover_tests()
+        mutation_tests()
+        fitness_tests()
+    #test_run_ga()
+run_tests()
 #test_add_edge_to_max_indep_set()
 #test_remove_extra_edges()
 #run_tests()
@@ -124,6 +164,7 @@ def test_fit_regularity():
     print FUN.fit_regularity(g)
 
 def test_large_lovasz_subgraph():
+
     g = graphs.RandomGNP(10, .5)
     #FUN._subgraph_mutate(g)
     old_lov_theta = g.lovasz_theta()
@@ -138,11 +179,7 @@ def test_large_lovasz_subgraph():
     #values = [b**0.5 for b in diag]
     print diag * theta
     print sum(diag*theta)
+    assert abs(sum(diag*theta) - theta) < 0.01
 #test_fit_regularity()
-def test_cr6():
-    g1 = graphs.RandomGNP(10, .75)
-    g2 = graphs.RandomGNP(10, .75)
-    print FUN.cr7(g1,g2)
-#test_cr6()
-test_remove_extra_edges()
+#test_remove_extra_edges()
 #test_large_lovasz_subgraph()

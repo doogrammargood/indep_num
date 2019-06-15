@@ -9,65 +9,8 @@ from numpy.random import randint, rand
 from sage.all import *
 from sage.graphs.graph_generators_pyx import RandomGNP
 from random import shuffle
-"""Fitness Functions"""
 
-def fit(g):
-    if g.order() < 1:
-        print("empty graph")
-    return g.lovasz_theta() / len(g.independent_set())
-
-def fit_eigen_values(g):
-    """Returns the ratio between the largest and second largest abs. value eigenvectors."""
-    """This doesn't give good results, because we usually must assume the graphs are regular."""
-    adjacency = np.array(g.adjacency_matrix())
-    eigenvalues = np.linalg.eigh(adjacency)[0]
-    largest = eigenvalues[-1]
-    second_largest = max(abs(eigenvalues[0]),abs(eigenvalues[-2]))
-    return (largest - second_largest) / largest
-
-def fit_regularity(g):
-    """ returns the reciprocal of the standard deviation of the degree list """
-    """ We take the reciprocal so that regular graphs are the most fit."""
-    degrees = g.degree_sequence()
-    deviation = np.std(degrees)
-    return 1/(1+deviation)
-
-def fit_with_regularity(g):
-    """a weighted average of fitness and regularity."""
-    return 0.90*fit(g) + 0.1*fit_regularity(g)
-
-
-"""Mutation Functions"""
-def mu(g):
-    """Choose a random edge uv, if exists remove it if not add it"""
-    g = g.copy()
-    v = randint(0, g.order()-1)
-    u = randint(0, g.order()-1)
-    while u == v:
-        u = randint(0, g.order()-1)
-    if g.has_edge(u, v):
-        if g.size() > 1:
-            g.delete_edge(u, v)
-    else:
-        g.add_edge(u, v)
-    # r = np.random.rand()
-    # if r<0.01:
-    #     g, _ = remove_extra_edges(g)
-    return g
-
-def add_edge_to_max_indep_set(g):
-    """Chooses a random maximal independent set to add an edge to"""
-    g = g.copy()
-    indep_sets = BON.cliques_of_graph(g.complement(), maximal=True)
-    index = randint(0,len(indep_sets))
-    indp = indep_sets[index]
-
-    v = randint(0, len(indp))
-    u = randint(0, len(indp))
-    while u == v:
-        u = randint(0, len(indp))
-    g.add_edge(u,v)
-    return g
+"""Helper Functions"""
 
 def remove_extra_edges(g):
     """Calculates the maximal independent sets of g.
@@ -147,17 +90,22 @@ def _remove_extra_edge(g, indep_sets = None):
         new_indep_sets = _update_indep_sets(new_graph,e,indep_sets)
         return new_graph, new_indep_sets
 
+def _vertex_cost_list(g):
+    """Returns a list of pairs [vertex_number,cost] sorted by cost."""
+    solution = LOV.lovasz_theta(g, long_return = True)
+    theta = solution['theta']
+    witness = solution['B']
+    costs = np.diagonal(witness)*theta
+    costs = enumerate(costs) #adds an index
+    costs = sorted(costs, key = lambda x: -x[1]) #sort by the cost
+    return costs
+
 def _large_lovasz_subgraph(g, fraction = 0.5):
     """Calculates lovasz theta of g, together with a witness.
     We use the costs of the vertices to identify a subgraph with a large lovasz theta.
     Then, we mutate one of the other edges."""
-    ans = LOV.lovasz_theta(g, long_return = True)
-    theta = ans['theta']
-    B = ans['B']
-    costs = np.diagonal(B)*theta
-    costs = enumerate(costs) #adds an index
-    costs = sorted(costs, key = lambda x: -x[1]) #sort by the cost
-    #print costs
+    theta = g.lovasz_theta()
+    costs = _vertex_cost_list(g)
     valuable_vertices = []
     cur_sum = 0
     index = 0
@@ -165,10 +113,71 @@ def _large_lovasz_subgraph(g, fraction = 0.5):
         valuable_vertices.append(costs[index][0])
         cur_sum+=costs[index][1]
         index += 1
-    #values = [b**0.5 for b in diag]
     return valuable_vertices
+"""Fitness Functions"""
+
+def fit(g):
+    if g.order() < 1:
+        print("empty graph")
+    return g.lovasz_theta() / len(g.independent_set())
+
+def fit_regularity(g):
+    """ returns the reciprocal of the standard deviation of the degree list """
+    """ We take the reciprocal so that regular graphs are the most fit."""
+    degrees = g.degree_sequence()
+    deviation = np.std(degrees)
+    return 1/(1+deviation)
+
+def fit_with_regularity(g):
+    """a weighted average of fitness and regularity."""
+    return 0.90*fit(g) + 0.1*fit_regularity(g)
+
+def fit_eigen_values(g):
+    """Returns the ratio between the largest and second largest abs. value eigenvectors."""
+    """This doesn't give good results, because we usually must assume the graphs are regular."""
+    adjacency = np.array(g.adjacency_matrix())
+    eigenvalues = np.linalg.eigh(adjacency)[0]
+    largest = eigenvalues[-1]
+    second_largest = max(abs(eigenvalues[0]),abs(eigenvalues[-2]))
+    return (largest - second_largest) / largest
+"""Mutation Functions"""
+def mu(g):
+    """Choose a random edge uv, if exists remove it. If not, add it"""
+    g = g.copy()
+    v = randint(0, g.order()-1)
+    u = randint(0, g.order()-1)
+    
+    while u == v:
+        u = randint(0, g.order()-1)
+    if g.has_edge(u, v):
+        if g.size() > 1:
+            g.delete_edge(u, v)
+    else:
+        g.add_edge(u, v)
+    # r = np.random.rand()
+    # if r<0.01:
+    #     g, _ = remove_extra_edges(g)
+    return g
+
+def add_edge_to_max_indep_set(g):
+    """Chooses a random maximal independent set to add an edge to"""
+    g = g.copy()
+    indep_sets = BON.cliques_of_graph(g.complement(), maximal=True)
+    index = randint(0,len(indep_sets)-1) #This causes an 'index out of range error.'
+    indp = indep_sets[index]
+
+    v = randint(0, len(indp))
+    u = randint(0, len(indp))
+    while u == v:
+        u = randint(0, len(indp))
+    g.add_edge(u,v)
+    return g
+
 
 def mutate_avoid_large_subgraph(g):
+    """Finds the subgraph which contributes the most to theta.
+    Adds a random edge which is not fully contained in that subgraph.
+    """
     g = g.copy()
     valuable_vertices = _large_lovasz_subgraph(g, fraction = 0.75)
     available_vertices = [v for v in g.vertices() if v not in valuable_vertices]
@@ -185,6 +194,7 @@ def mutate_avoid_large_subgraph(g):
     return g
 
 def mutate_add_then_remove_edges(g):
+    """Adds edges randomly, then performs remove_extra_edges."""
     g = g.copy()
     g_c = g.complement()
     edges = g_c.edges()
@@ -281,64 +291,44 @@ def cr5(g1,g2):
         print new_graph.vertices()
     return new_graph
 
-def _vertex_cost_list(g):
-    """Returns a list of pairs [vertex_number,cost] sorted by cost."""
-    solution = LOV.lovasz_theta(g, long_return = True)
-    theta = solution['theta']
-    witness = solution['B']
-    costs = np.diagonal(witness)*theta
-    costs = enumerate(costs) #adds an index
-    costs = sorted(costs, key = lambda x: -x[1]) #sort by the cost
-    return costs
 def cr6(g1, g2):
     """Orders the vertices of g1 and g2 according to their contribution to lovasz theta.
     Find subgraphs sg1 and sg2 such that sg1.order()+sg2.order()==g1.order()
                            and such that the total sum of contributions is maximized.
-    add edges randomly between sg1 and sg2, and this produces the offspring.
+    add all edges between sg1 and sg2, then remove edges which don't affect the independence number.
     This function assumes g1 and g2 have the same number of vertices. Might fail otherwise.
     """
     costs_g1 = _vertex_cost_list(g1)
     costs_g2 = _vertex_cost_list(g2)
     index_g1 = 0
     index_g2 = 0
-    #print costs_g1
-    while(index_g1 + index_g2 < g1.order()):
+    while(index_g1 + index_g2 < g1.order()): #after this loop,
         if costs_g1[index_g1][1] > costs_g2[index_g2][1]:
             index_g1 += 1
         else:
             index_g2 += 1
     sg1 = g1.subgraph([c[0] for c in costs_g1[:index_g1]])
     sg2 = g2.subgraph([c[0] for c in costs_g2[:index_g2]])
-    # print sg1.vertices()
-    # print sg1.edges()
-    # print sg2.vertices()
-    # print sg2.edges()
+
     child_graph = sg1 + sg2 #These vertices are labeled [0..n]
-    # print child_graph.vertices()
-    # print child_graph.adjacency_matrix()
     for v1, v2 in itertools.product(range(sg1.order()),range(sg2.order())):
-        #r = np.random.rand()
         child_graph.add_edge(v1,v2+sg1.order())
     if child_graph.order()!= g1.order():
         print "order changed"
     child_graph, _ = remove_extra_edges(child_graph)
-    #print child_graph.adjacency_matrix()
-    #print child_graph.vertices()
-    #for e in itertools.product(sg1.vertices(),sg2.vertices())
 
     return child_graph
-    #values = [b**0.5 for b in diag]
-    #return valuable_vertices
-    #[np.random.rand() for v in g1.vertices()]
 
 def cr7(g1,g2):
-    """Same as cr4 but aligning the graphs according to vertex cost.
+    """Aligns the graphs according to vertex cost.
+    When an edge is present in both graphs, we keep it.
+    When it is only in one graph, we flip a coin.
     """
     costs_g1 = _vertex_cost_list(g1)
-    g1_new_order = [c[0] for c in costs_g1] #
+    g1_new_order = [c[0] for c in costs_g1] #list determines how to align the vertices of g1
     costs_g2 = _vertex_cost_list(g2)
     g2_new_order = [c[0] for c in costs_g2]
-    g2_new_order.reverse()
+    #g2_new_order.reverse()
     dict={}
     for v in range(g1.order()):
         neighbors = []
@@ -357,9 +347,7 @@ def cr7(g1,g2):
                     r = np.random.rand()
                     if r>0.5:
                         neighbors.append(t)
-        #print neighbors
         dict[v]=neighbors
-    #print dict
     return Graph(dict)
 
 def cr8(g1,g2):
